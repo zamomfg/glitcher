@@ -24,16 +24,16 @@
 
  ### Usage
 
-positional arguments:
+positional arguments:\
   img_path
 
-options:
-  -h, --help
-  -o, --out
+options:\
+  -h, --help\
+  -o, --out\
   -d, --debug
 
 
-`python3 glitcher.py <filename>`
+`python3 glitcher.py <filename>`\
 `python3 glitcher.py <filename> -o <output file>`
 
 ### Requirements
