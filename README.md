@@ -14,6 +14,14 @@
 
  # Script to create a glitch effect on faces in images
 
+ ## What is this
+
+ This is just a random script that obscures faces in images.
+ It uses a deep nerual network (DNN) with OpenCV to find the faces in images.
+ And then some transformations with numpy to "glitch" the image.
+
+ **NOTE** This is **Note** ment for hiding someones identity, this process are easily reversed
+
  ### Usage
 
 positional arguments:
@@ -27,6 +35,12 @@ options:
 
 `python3 glitcher.py <filename>`
 `python3 glitcher.py <filename> -o <output file>`
+
+### Requirements
+
+Python3
+
+Python modules Pillow and OpenCV
 
 ### Examples
 
