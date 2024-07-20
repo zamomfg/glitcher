@@ -25,79 +25,74 @@ class GlitchImage:
         zeros = np.zeros(img_arr.shape[:2], dtype="uint8")
 
         # randomize RGB shuffel include zeroes in the mix
-        arr = [b, g, r, zeros, zeros]
+        arr = [b, g, r, zeros]
         random.shuffle(arr)
         return cv.merge(arr[:3])
 
     def apply_glitch(self, y_start, y_stop, x_start, x_stop, use_wrap = True):
         block_height = random.randint(int(self.img_height / 80), int(self.img_height / 50))
-        # y_start = random.randint(0, self.img_height - block_height)
-        # y_stop = y_start + block_height
 
-        x_offset = random.randint(10, int(self.img_width / 3))
+        x_offset = random.randint(-int(self.img_width / 10), int(self.img_width / 10))
+
+        whole_chunk = self.img_arr[y_start:y_stop, :]
+        print("whole chunk shape", whole_chunk.shape)
+
+        # grab a chunk a bit bigger then x,y start to cover the whole target
+        x_size_offset = random.randint(int(self.img_width / 10), int(self.img_width / 5))
+        print("x_offset", x_offset, "size offset x ", x_size_offset)
+        start = x_start-x_size_offset
+        end = x_stop+x_size_offset
+
+        # if random.random() < .5:
+        #     end = x_stop+x_size_offset
+        # else:
+        #     end = x_stop-x_size_offset
+
+        size = end - start
+
+        print("get chunk from x", start, "end", end, "size", size)
+
+        move_to_x_start = x_start + x_offset
+        move_to_x_stop = x_start + size + x_offset
+        if move_to_x_stop > self.img_width:
+            print("in arr to big, stop", move_to_x_stop - self.img_width)
+            end = end - (move_to_x_stop - self.img_width )
+            move_to_x_stop = self.img_width
+        if move_to_x_start > self.img_width:
+            print("in arr to big, start",  self.img_width - move_to_x_start)
+            start = start + (self.img_width - move_to_x_start)
+            move_to_x_start = self.img_width
+
+        print("paste chunk to x", move_to_x_start, "end", move_to_x_stop, "size", size)
+
+        change = self.img_arr[y_start:y_stop, start:end]
+
+        print("change arr shape", change.shape)
+        print("out arr shape", self.out_arr[y_start:y_stop, move_to_x_start:move_to_x_stop].shape)
 
         if random.random() < .5:
-            # glitch left
-            debug_color=(0, 0, 255)
-            x_start = self.img_width - x_offset
-            x_stop = x_offset
+            change = self.glitch_rgb(change)
 
-            left = self.img_arr[y_start:y_stop, x_start:]
-            wrap = self.img_arr[y_start:y_stop, :x_start]
+        self.out_arr[y_start:y_stop, move_to_x_start:move_to_x_stop] = change
 
-            # left = self.glitch_rgb(left)
-            # wrap = self.glitch_rgb(wrap)
-
-            zero_arr = np.zeros((y_stop - y_start, self.img_width, 3))
-            zero_arr[:, x_start:] = left
-            self.out_arr[y_start:y_stop, :] = zero_arr
-
-            self.out_arr[y_start:y_stop, :x_stop] = left
-            if use_wrap:
-                self.out_arr[y_start:y_stop, x_stop:] = wrap
-        else:
-            # glitch right
-            debug_color=(255, 0, 0)
-            x_start = x_offset
-            x_stop = self.img_width - x_offset
-
-            right = self.img_arr[y_start:y_stop, :x_stop]
-            wrap = self.img_arr[y_start:y_stop, x_stop:]
-
-            zero_arr = np.zeros((y_stop - y_start, self.img_width, 3))
-            zero_arr[:, :x_stop] = right
-            self.out_arr[y_start:y_stop, :] = zero_arr
-
-
-            # right = self.glitch_rgb(right)
-            # wrap = self.glitch_rgb(wrap)
-
-            self.out_arr[y_start:y_stop, x_start:] = right
-            if use_wrap:
-                self.out_arr[y_start:y_stop, :x_start] = wrap
-
+        debug_color = (0, 255, 0)
+        debug_color2 = (255, 0, 255)
         if __DEBUG__:
             cv_img=cv.cvtColor(self.out_arr, cv.COLOR_RGB2BGR)
-            cv.rectangle(cv_img, (x_start, y_start), (x_stop, y_stop), color=debug_color, thickness=2)
-            cv.arrowedLine(cv_img,(x_start,y_start),(x_stop, y_start), color=debug_color, thickness=2)
+            # cv.rectangle(cv_img, (x_start, y_start), (x_stop, y_stop), color=debug_color, thickness=2)
+            cv.rectangle(cv_img, (move_to_x_start, y_start), (move_to_x_stop, y_stop), color=debug_color, thickness=2)
+            cv.rectangle(cv_img, (start, y_start), (end, y_stop), color=debug_color2, thickness=2)
+            # cv.arrowedLine(cv_img,(x_start,y_start),(x_stop, y_start), color=debug_color, thickness=2)
             cv.imshow("image", cv_img)
             cv.waitKey(0)
 
-    def glitch(self, nr: int, face=False):
-        nr_of_glitches = 1
-        if face == False and len(self.faces) == 0:
-            y_offset = 400
-            y_start = random.randint(0, self.img_height - y_offset)
-            y_stop = y_start + y_offset
-            y_size = int(y_offset / nr)
-        else:
-            nr_of_glitches = len(self.faces)
+    def glitch(self, nr: int):
+        if len(self.faces) <= 0:
+            return
 
-        for glitch_nr in range(0, nr_of_glitches):
-            # print("nr of glitches", glitch_nr)
-            if face == True:
-                x_start, y_start, x_stop, y_stop, confidence = self.faces[glitch_nr]
-                y_size = int((y_stop - y_start) / nr)
+        for glitch_nr in range(0, len(self.faces)):
+            x_start, y_start, x_stop, y_stop, confidence = self.faces[glitch_nr]
+            y_size = int((y_stop - y_start) / nr)
 
             for i in range(nr):
                 # y_part_size = random.randint(y_size - 10, y_size + 10)
@@ -106,8 +101,8 @@ class GlitchImage:
                 y_start_part = y_start + (y_part_size * i)
                 y_stop_part = y_start + (y_part_size * (i+1))
 
-                print(y_start_part, y_stop_part, y_size)
-                self.apply_glitch(y_start_part, y_stop_part, 0, 0)
+                # print(y_start_part, y_stop_part, y_size)
+                self.apply_glitch(y_start_part, y_stop_part, x_start, x_stop)
 
     def find_face(self):
         # https://raw.githubusercontent.com/opencv/opencv/master/samples/dnn/face_detector/deploy.prototxt
@@ -176,11 +171,11 @@ if __name__ == "__main__":
     parser.add_argument("img_path")
     parser.add_argument("-o", "--out", required=False, default=None)
     parser.add_argument("-d", "--debug", required=False, default=False, action="store_true")
-    parser.add_argument("-f", "--face", required=False, default=True)
+    # parser.add_argument("-f", "--face", required=False, default=True)
     args = parser.parse_args()
     __DEBUG__ = args.debug
     img = open_image(args.img_path)
     glitch_img = img_to_glitch(img)
     glitch_img.find_face()
-    glitch_img.glitch(10, args.face)
+    glitch_img.glitch(12)
     glitch_img.to_image(args.out, args.debug)
