@@ -5,7 +5,9 @@ import argparse
 import cv2 as cv
 import os
 
-from numpy._core.multiarray import WRAP, array
+from numpy._core.multiarray import zeros
+
+__DEBUG__ = False
 
 class GlitchImage:
     def __init__(self, img: Image.Image):
@@ -18,7 +20,16 @@ class GlitchImage:
 
         self.faces = []
 
-    def apply_glitch(self, y_start, y_stop, x_start, x_stop, use_wrap = False):
+    def glitch_rgb(self, img_arr):
+        b,g,r = cv.split(img_arr)
+        zeros = np.zeros(img_arr.shape[:2], dtype="uint8")
+
+        # randomize RGB shuffel include zeroes in the mix
+        arr = [b, g, r, zeros, zeros]
+        random.shuffle(arr)
+        return cv.merge(arr[:3])
+
+    def apply_glitch(self, y_start, y_stop, x_start, x_stop, use_wrap = True):
         block_height = random.randint(int(self.img_height / 80), int(self.img_height / 50))
         # y_start = random.randint(0, self.img_height - block_height)
         # y_stop = y_start + block_height
@@ -27,26 +38,50 @@ class GlitchImage:
 
         if random.random() < .5:
             # glitch left
+            debug_color=(0, 0, 255)
             x_start = self.img_width - x_offset
             x_stop = x_offset
 
             left = self.img_arr[y_start:y_stop, x_start:]
             wrap = self.img_arr[y_start:y_stop, :x_start]
 
+            # left = self.glitch_rgb(left)
+            # wrap = self.glitch_rgb(wrap)
+
+            zero_arr = np.zeros((y_stop - y_start, self.img_width, 3))
+            zero_arr[:, x_start:] = left
+            self.out_arr[y_start:y_stop, :] = zero_arr
+
             self.out_arr[y_start:y_stop, :x_stop] = left
             if use_wrap:
                 self.out_arr[y_start:y_stop, x_stop:] = wrap
         else:
-            # glitch left
+            # glitch right
+            debug_color=(255, 0, 0)
             x_start = x_offset
             x_stop = self.img_width - x_offset
 
             right = self.img_arr[y_start:y_stop, :x_stop]
             wrap = self.img_arr[y_start:y_stop, x_stop:]
 
+            zero_arr = np.zeros((y_stop - y_start, self.img_width, 3))
+            zero_arr[:, :x_stop] = right
+            self.out_arr[y_start:y_stop, :] = zero_arr
+
+
+            # right = self.glitch_rgb(right)
+            # wrap = self.glitch_rgb(wrap)
+
             self.out_arr[y_start:y_stop, x_start:] = right
             if use_wrap:
                 self.out_arr[y_start:y_stop, :x_start] = wrap
+
+        if __DEBUG__:
+            cv_img=cv.cvtColor(self.out_arr, cv.COLOR_RGB2BGR)
+            cv.rectangle(cv_img, (x_start, y_start), (x_stop, y_stop), color=debug_color, thickness=2)
+            cv.arrowedLine(cv_img,(x_start,y_start),(x_stop, y_start), color=debug_color, thickness=2)
+            cv.imshow("image", cv_img)
+            cv.waitKey(0)
 
     def glitch(self, nr: int, face=False):
         nr_of_glitches = 1
@@ -62,9 +97,6 @@ class GlitchImage:
             # print("nr of glitches", glitch_nr)
             if face == True:
                 x_start, y_start, x_stop, y_stop, confidence = self.faces[glitch_nr]
-                print("face nr", glitch_nr)
-                print("y_start", "y_stop")
-                print(y_start, y_stop)
                 y_size = int((y_stop - y_start) / nr)
 
             for i in range(nr):
@@ -146,6 +178,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--debug", required=False, default=False, action="store_true")
     parser.add_argument("-f", "--face", required=False, default=True)
     args = parser.parse_args()
+    __DEBUG__ = args.debug
     img = open_image(args.img_path)
     glitch_img = img_to_glitch(img)
     glitch_img.find_face()
