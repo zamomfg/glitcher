@@ -20,7 +20,7 @@
  It uses a deep nerual network (DNN) with OpenCV to find the faces in images.
  And then some transformations with numpy to "glitch" the image.
 
- **NOTE** This is **Not** ment for hiding someones identity, this process are easily reversed
+ **NOTE** This is **NOT** ment for hiding someones identity, this process are easily reversed
 
  ### Usage
 
